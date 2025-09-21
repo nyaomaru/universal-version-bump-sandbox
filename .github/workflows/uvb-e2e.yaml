@@ -1,0 +1,57 @@
+name: UVB E2E
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Select bump type'
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Ensure at least one tag
+        run: |
+          if ! git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            git tag v0.0.0 && git push origin --tags
+          fi
+
+      - name: Setup playground (idempotent)
+        run: |
+          mkdir -p playground
+          [ -f playground/package.json ] || echo '{"name":"demo","version":"0.1.0"}' > playground/package.json
+          [ -f playground/deno.json ] || echo '{"version":"0.1.0"}' > playground/deno.json
+          [ -f playground/jsr.json ] || echo '{"version":"0.1.0"}' > playground/jsr.json
+
+      - name: Run action from branch
+        uses: nyaomaru/universal-version-bump@feature/jsr-version-bump-support
+        with:
+          release_type: ${{ inputs.release_type }}
+          target_path: playground
+          git_tag: 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show results
+        run: |
+          echo "::group::git status"
+          git status --porcelain
+          echo "::endgroup::"
+          echo "::group::manifests"
+          cat playground/package.json || true
+          cat playground/deno.json || true
+          cat playground/jsr.json || true
+          echo "::endgroup::"
