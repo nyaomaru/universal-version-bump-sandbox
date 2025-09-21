@@ -1,4 +1,4 @@
-name: UVB E2E 2
+name: UVB E2E 3
 on:
   workflow_dispatch:
     inputs:
